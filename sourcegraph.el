@@ -7,6 +7,35 @@
 
 ;;; Commentary:
 
+;; Correct form for url:
+;; "https://sourcegraph.com/api/search?q=django&exported=1&_via=sourcegraph-emacs-01"
+
+;; Should I use defvar for the via string?
+
+;;; Code:
+
+(require 'json)
+
+
+;; todo: error catching
+(defun sourcegraph-parse-json (url)
+  (let* ((json-object-type 'plist)
+         (json-key-type 'symbol) ; setting explicitly
+         (json-buffer (url-retrieve-synchronously url)))
+    (with-current-buffer json-buffer
+      ;; delete headers
+      (goto-char (point-min))
+      (delete-region (point-min) (- (search-forward "[") 1))
+      ;; set-up for json-read
+      (goto-char (point-min))
+
+      (let ((parsed-json (json-read)))
+        ;; (delete-region (point-min) (point-max))
+        (princ (plist-get (elt parsed-json 0) 'repo))))
+    (display-buffer json-buffer)))
+
+
+
 ;; I thought I'd take a stab at parsing Sourcegraph's html using a
 ;; state machine. Most of this code will be scrapped after I get the
 ;; API.
@@ -14,8 +43,6 @@
 ;; NOTE: I've only tested this for the input 'django'. The code is
 ;; also kind of hacky because I'm new to Elisp, and because I finished
 ;; this in an 8 hour strech. :P
-
-;;; Code:
 
 (defun sourcegraph-search-site ()
   (interactive)
