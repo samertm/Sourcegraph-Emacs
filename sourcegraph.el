@@ -1,4 +1,4 @@
-f;;; sourcegraph.el --- find the code you need quickly
+;;; sourcegraph.el --- find the code you need quickly
 
 ;; Copyright (C) 2014 Samer Masterson
 
