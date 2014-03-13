@@ -21,19 +21,17 @@
 (defun sourcegraph-parse-json (url)
   (let* ((json-object-type 'plist)
          (json-key-type 'symbol) ; setting explicitly
-         (json-buffer (url-retrieve-synchronously url)))
+         (json-buffer (url-retrieve-synchronously url))
+         (parsed-json (vector)))
     (with-current-buffer json-buffer
       ;; delete headers
       (goto-char (point-min))
       (delete-region (point-min) (- (search-forward "[") 1))
       ;; set-up for json-read
       (goto-char (point-min))
-
-      (let ((parsed-json (json-read)))
-        ;; (delete-region (point-min) (point-max))
-        (princ (plist-get (elt parsed-json 0) 'repo))))
-    (display-buffer json-buffer)))
-
+      (setq parsed-json (json-read)))
+    (kill-buffer json-buffer)
+    parsed-json))
 
 
 ;; I thought I'd take a stab at parsing Sourcegraph's html using a
