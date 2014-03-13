@@ -80,8 +80,7 @@
     build-string))
 
 ;; html must be a lisp object in the form returned by the call
-;; `libxml-parse-html-region'. html-text is a string, which starts as "".
-;; maybe set html-text to an optional arg?
+;; `libxml-parse-html-region'.
 
 (defun text-from-html (html)
   (let ((values (cdr (cdr html)))
