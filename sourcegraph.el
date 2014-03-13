@@ -1,4 +1,3 @@
-
 ;;; sourcegraph.el --- find the code you need quickly
 
 ;; Copyright (C) 2014 Samer Masterson
@@ -51,9 +50,9 @@
         (index 0)
         (deep 0)
         (state :watch))
-    ;; three states. One state reads the character and decides what to do
-    ;; one state moves outside of a <tag>
-    ;; one state munches the data and returns
+    ;; state `:watch' reads the character and decides what to do
+    ;; state `:in-tag' moves outside of a <tag>
+    ;; state `:munch' munches the data and returns
     (while (not (eq state :done))
       (let* ((curr-char (elt string index)))
         (cond ((eq state :watch)
