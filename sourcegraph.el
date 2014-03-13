@@ -19,7 +19,7 @@
 ;; How does namespacing work in emacs? How do I keep from having
 ;; name clashes?
 
-;; Change echo text on successful query to sourcegraph.com
+;; Change echo text on successful query
 
 ;; Requires libxml2 support
 
