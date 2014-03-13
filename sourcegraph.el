@@ -12,13 +12,20 @@
 
 ;; Should I use defvar for the via string?
 
+;; Currently using overlays for buttons with the button package.
+;; Might switch to text properties if performance is an issue.
+
+;; How does namespacing work in emacs? How do I keep from having
+;; name clashes?
+
 ;;; Code:
 
 (require 'json)
+(require 'button)
 
 
 ;; todo: error catching
-(defun sourcegraph-parse-json (url)
+(defun parse-json (url)
   (let* ((json-object-type 'plist)
          (json-key-type 'symbol) ; setting explicitly
          (json-buffer (url-retrieve-synchronously url))
@@ -67,25 +74,30 @@
                       (setq build-string (concat build-string (char-to-string curr-char)))
                       (setq index (1+ index))))))))
     build-string))
-                      
-(defun sourcegraph-write-text (json-vector search-terms)
-  (let* ((final-string (format "Sourcegraph Search Results for %s\n\n\n" search-terms))
-         (json-index 0))
+
+
+;; change to insert string into buffer
+(defun write-symbols-text (json-vector search-terms)
+  (let* ((json-index 0))
+    (insert (format "Sourcegraph Search Results for %s\n\n\n" search-terms))
     (while (< json-index (length json-vector))
       (let ((json (elt json-vector json-index))
             (build-string ""))
-        (setq build-string "Result: ")
-        (setq build-string
-              (concat build-string (plist-get json 'specificKind) "\t\t"
-                      (plist-get json 'specificPath) "\t\t"
-                      (plist-get json 'repo)))
+        (insert "Result: ")
+        (insert (plist-get json 'specificKind))
+        (insert "\t\t")
+        (insert-button (plist-get json 'specificPath)
+                       'action 'sourcegraph-button-update
+                       'sid (plist-get json 'sid)
+                       'follow-link t)
+        (insert "\t\t")
+        (insert-button (plist-get json 'repo))
         (if (plist-get json 'doc)
-            (setq build-string (concat build-string "\n    " (first-sentence (plist-get json 'doc)))))
+            (insert "\n    " (first-sentence (plist-get json 'doc))))
         (if (< json-index (1- (length json-vector)))
-            (setq build-string (concat build-string "\n\n")))
-        (setq final-string (concat final-string build-string))
-        (setq json-index (1+ json-index))))
-    final-string))
+            (insert "\n\n"))
+        (setq json-index (1+ json-index))))))
+    
 
 (defun sourcegraph-search-site ()
   (interactive)
@@ -96,12 +108,19 @@
                              search-string
                              via))
          (buffer (get-buffer-create "*Sourcegraph Search*"))
-         (json (sourcegraph-parse-json url-string))
-         (text (sourcegraph-write-text json input-string)))
+         (json (parse-json url-string)))
     (with-current-buffer buffer
       (delete-region (point-min) (point-max))
-      (insert text))
+      (write-symbols-text json input-string))
     (display-buffer buffer)))
+
+
+
+
+
+
+
+
 
 
 (provide 'sourcegraph)
