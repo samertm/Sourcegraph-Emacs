@@ -76,6 +76,7 @@
     build-string))
 
 
+
 ;; change to insert string into buffer
 (defun write-symbols-text (json-vector search-terms)
   (let* ((json-index 0))
@@ -87,7 +88,6 @@
         (insert (plist-get json 'specificKind))
         (insert "\t\t")
         (insert-button (plist-get json 'specificPath)
-                       'action 'sourcegraph-button-update
                        'sid (plist-get json 'sid)
                        'follow-link t)
         (insert "\t\t")
