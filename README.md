@@ -1,7 +1,14 @@
 # Sourcegraph Emacs Package
 
-This package now calls the Sourcegraph API, which means that results are
-slightly more useful now!
+This package users data from Sourcegraph.com to help you find code examples
+from within emacs.
+
+Call M-x sourcegraph-search-site RET to look for examples of the framework or
+the language that you're in.
+
+As of right now, calls to Sourcegraph's examples API take a couple seconds. As
+the site matures, example look ups should speed up.
+
 
 ## License
 
