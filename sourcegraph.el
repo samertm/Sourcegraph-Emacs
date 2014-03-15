@@ -94,34 +94,67 @@
       (setq values (cdr values))))
     html-text))
 
+;; Used when the user's version of Emacs is not compiled with libxml2
+;; `html' is a string consisting of html
+;; Returns the text in `html' w/o any data
+;; TODO make this decode special html characters (i.e. &#34; -> \")
+(defun fallback-text-from-html (html)
+  (let ((state :out-tag)
+        (html-index 0)
+        (html-text ""))
+    ;; Two states
+    ;; :out-tag moves to :in-tag if it sees ?<, otherwise it appends the char to
+    ;; html-text
+    ;; :in-tag moves to the outside of the tag
+    (while (< html-index (length html))
+      (let ((value (elt html html-index)))
+        (cond ((eq state :out-tag)
+               (if (eq value ?<)
+                   (setq state :in-tag)
+                 (setq html-text (concat html-text (char-to-string value))))) ;; TODO append char
+              ((eq state :in-tag)                                             ;; without converting
+               (if (eq value ?>)
+                   (setq state :out-tag)))))
+      (setq html-index (1+ html-index)))
+    html-text))
+
 (defun write-examples-text (json-vector name)
-  (insert (format "Examples for %s\n\n\n" name))
+  (insert (format "Examples for %s\n" name))
+  (if (not (fboundp 'libxml-parse-html-region))
+      (insert "For best results, use with an Emacs compiled with libxml2\n\n")
+    (insert "\n\n"))
   (let ((json-index 0))
     (while (< json-index (length json-vector))
       (let* ((json (elt json-vector json-index))
              (html-text (plist-get (plist-get json 'src) 'src))
              html)
-        (insert "repo: " (plist-get json 'repo)
-                " file: " (plist-get json 'file)
+        (insert "repo: ")
+        (insert-button (plist-get json 'repo)
+                       'name (plist-get json 'repo)
+                       'action 'nav-to-repo
+                       'follow-link t)
+        (insert " file: " (plist-get json 'file)
                 "\n\n===start code===\n")
-        (with-temp-buffer
-          (insert html-text)
-          (setq html (libxml-parse-html-region (point-min) (point-max))))
-        (insert (text-from-html html)
-                "\n=== end code ===\n\n"))
+        (if (fboundp 'libxml-parse-html-region)
+            (progn
+              (with-temp-buffer
+                (insert html-text)
+                (setq html (libxml-parse-html-region (point-min) (point-max))))
+              (insert (text-from-html html)))
+          (insert (fallback-text-from-html html-text)))
+        (insert "\n=== end code ===\n\n"))
       (setq json-index (1+ json-index)))))
-           
+
+
 (defun nav-to-examples (button)
-  (if (not (fboundp 'libxml-parse-html-region))
-      (message "Emacs must be compiled with libxml2 support") ;; TODO or open webpage
-    (let* ((sid (overlay-get button 'sid))
-           (url (format "https://sourcegraph.com/api/refs?sid=%s" sid)) ;; add via?
-           (json-vector (parse-json url))
-           (name (overlay-get button 'name)))
-      ;; TODO make this call more rebust
-      (set-buffer "*Sourcegraph Search*") 
-      (delete-region (point-min) (point-max))
-      (write-examples-text json-vector name))))
+  (let* ((sid (overlay-get button 'sid))
+         (url (format "https://sourcegraph.com/api/refs?sid=%s" sid)) ;; add via?
+         (json-vector (parse-json url))
+         (name (overlay-get button 'name)))
+    ;; TODO make this call more rebust
+    (set-buffer "*Sourcegraph Search*") 
+    (delete-region (point-min) (point-max))
+    (write-examples-text json-vector name)))
 
 (defun nav-to-repo (button)
   (let ((url (format "https://sourcegraph.com/%s" (overlay-get button 'name))))
