@@ -123,6 +123,10 @@
       (delete-region (point-min) (point-max))
       (write-examples-text json-vector name))))
 
+(defun nav-to-repo (button)
+  (let ((url (format "https://sourcegraph.com/%s" (overlay-get button 'name))))
+    (browse-url url)))
+
 ;; change to insert string into buffer
 (defun write-symbols-text (json-vector search-terms)
   (let* ((json-index 0))
@@ -139,7 +143,10 @@
                        'sid (plist-get json 'sid)
                        'follow-link t)
         (insert "\t\t")
-        (insert-button (plist-get json 'repo))
+        (insert-button (plist-get json 'repo)
+                       'name (plist-get json 'repo) ; TODO get name from overlay
+                       'action 'nav-to-repo
+                       'follow-link t)
         (if (plist-get json 'doc)
             (insert "\n    " (first-sentence (plist-get json 'doc))))
         (if (< json-index (1- (length json-vector)))
