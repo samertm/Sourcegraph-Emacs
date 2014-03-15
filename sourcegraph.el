@@ -161,6 +161,7 @@
         (fn (function-called-at-point))
         env)
     ;; good enough for github is good enough for me ;)
+    ;; reference: https://github.com/github/linguist/pull/748#issuecomment-37633185
     ;; extra space is intentional. Compare:
     ;; Search Sourcegraph: python<point here>
     ;; Search Sourcegraph: python <point here>
