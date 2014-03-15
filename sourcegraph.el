@@ -118,10 +118,19 @@
       (setq html-index (1+ html-index)))
     html-text))
 
-(defun write-examples-text (json-vector name)
+;; Takes a string like this: "github.com/samertm/Sourcegraph-Emacs"
+;; and returns "samertm/Sourcegraph-Emacs"
+(defun strip-github (url)
+  (if (string-match "\\(github\\.com/\\)\\(.+\\)" url)
+      (match-string 2 url) ;; url must be passed in b/c it was used with string-match
+    url))
+
+
+(defun write-examples-text (json-vector name &optional back)
   (insert (format "Examples for %s\n" name))
   (if (not (fboundp 'libxml-parse-html-region))
-      (insert "For best results, use with an Emacs compiled with libxml2\n\n")
+      (insert "For best results, use with an Emacs compiled with libxml2\n"
+              "Currently does not decode special html chars (like &#34;)\n")
     (insert "\n\n"))
   (let ((json-index 0))
     (while (< json-index (length json-vector))
@@ -129,20 +138,24 @@
              (html-text (plist-get (plist-get json 'src) 'src))
              html)
         (insert "repo: ")
-        (insert-button (plist-get json 'repo)
+        (insert-button (strip-github (plist-get json 'repo))
                        'name (plist-get json 'repo)
                        'action 'nav-to-repo
                        'follow-link t)
-        (insert " file: " (plist-get json 'file)
-                "\n\n===start code===\n")
-        (if (fboundp 'libxml-parse-html-region)
-            (progn
-              (with-temp-buffer
-                (insert html-text)
-                (setq html (libxml-parse-html-region (point-min) (point-max))))
-              (insert (text-from-html html)))
-          (insert (fallback-text-from-html html-text)))
-        (insert "\n=== end code ===\n\n"))
+        (insert " file: " (plist-get json 'file) "\n\n")
+        (let ((point-start (point))
+              overlay)
+          (if (fboundp 'libxml-parse-html-region)
+              (progn
+                (with-temp-buffer
+                  (insert html-text)
+                  (setq html (libxml-parse-html-region (point-min) (point-max))))
+                (insert (text-from-html html)))
+            (insert (fallback-text-from-html html-text)))
+          (insert "\n")
+          (setq overlay (make-overlay point-start (point)))
+          (overlay-put overlay 'face '(background-color . "LightGrey")))
+        (insert "\n\n"))
       (setq json-index (1+ json-index)))))
 
 
@@ -176,7 +189,7 @@
                        'sid (plist-get json 'sid)
                        'follow-link t)
         (insert "\t\t")
-        (insert-button (plist-get json 'repo)
+        (insert-button (strip-github (plist-get json 'repo))
                        'name (plist-get json 'repo) ; TODO get name from overlay
                        'action 'nav-to-repo
                        'follow-link t)
