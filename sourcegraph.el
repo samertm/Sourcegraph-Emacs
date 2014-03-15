@@ -158,7 +158,7 @@
 
 (defun write-examples-text (json-vector name &optional back)
   (insert (format "Examples for %s\n" name))
-  (if (not nil) ;(fboundp 'libxml-parse-html-region))
+  (if (not (fboundp 'libxml-parse-html-region))
       (insert "For best results, use with an Emacs compiled with libxml2\n\n")
     (insert "\n\n"))
   (let ((json-index 0))
@@ -174,7 +174,7 @@
         (insert " file: " (plist-get json 'file) "\n\n")
         (let ((point-start (point))
               overlay)
-          (if nil ;(fboundp 'libxml-parse-html-region)
+          (if (fboundp 'libxml-parse-html-region)
               (progn
                 (with-temp-buffer
                   (insert html-text)
