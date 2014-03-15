@@ -152,11 +152,42 @@
         (if (< json-index (1- (length json-vector)))
             (insert "\n\n"))
         (setq json-index (1+ json-index))))))
-    
+
+;; Return nil if no environment can be sensed. Otherwise, return default
+;; string for searching on sourcegraph
+(defun sense-environment ()
+  (interactive)
+  (let ((name (buffer-name))
+        (fn (function-called-at-point))
+        env)
+    ;; good enough for github is good enough for me ;)
+    ;; extra space is intentional. Compare:
+    ;; Search Sourcegraph: python<point here>
+    ;; Search Sourcegraph: python <point here>
+    (cond ((string-match ".+\.rb" name)
+           (setq env "ruby "))
+          ((string-match ".+\.py" name)
+           (setq env "python "))
+          ((string-match ".+\.js" name)
+           (setq env "javascript "))
+          ((string-match ".+\.go" name)
+           (setq env "go ")))
+    ;; No extra space after function names (because we
+    ;; assume the user wanted to look up the function).
+    (if fn
+        (if env
+            (setq env (concat env (symbol-name fn)))
+          (setq env (symbol-name fn))))
+    env))
+
 
 (defun sourcegraph-search-site ()
   (interactive)
-  (let* ((input-string (read-string "Search Sourcegraph: "))
+  (let* ((env (sense-environment))
+         ;; do I need the if statement when initial-string is ""?
+         (input-string (if env
+                           (read-string "Search Sourcegraph: " env)
+                         (read-string "Search Sourcegraph: ")))
          (search-string (replace-regexp-in-string " " "+" input-string))
          (via "sourcegraph-emacs-01")
          (url-string (format "https://sourcegraph.com/api/search?q=%s&exported=1&_via=%s"
