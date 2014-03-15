@@ -20,7 +20,8 @@
 
 ;; Change echo text on successful query
 
-;; Requires libxml2 support
+;; Works best with libxml2 support (which is included in the Debian package,
+;; but not in most OS X packages).
 
 ;;; Code:
 
