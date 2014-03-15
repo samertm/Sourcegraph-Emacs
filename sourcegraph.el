@@ -203,7 +203,6 @@
 ;; Return nil if no environment can be sensed. Otherwise, return default
 ;; string for searching on sourcegraph
 (defun sense-environment ()
-  (interactive)
   (let ((name (buffer-name))
         (fn (function-called-at-point))
         env)
