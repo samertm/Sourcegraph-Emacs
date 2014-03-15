@@ -102,22 +102,51 @@
 (defun fallback-text-from-html (html)
   (let ((state :out-tag)
         (html-index 0)
-        (html-text ""))
-    ;; Two states
+        (html-text "")
+        (html-escape-chars '(("#34" . ?\") ; TODO test for which codes to add
+                             ("quot" . ?\")
+                             ("#35" . ?#)
+                             ("#38" . ?&)
+                             ("amp" . ?&)
+                             ("#59" . ?\;)))
+        (html-escape-code ""))
+    ;; Three states
     ;; :out-tag moves to :in-tag if it sees ?<, otherwise it appends the char to
     ;; html-text
     ;; :in-tag moves to the outside of the tag
+    ;; :code reads an html code and inserts it
     (while (< html-index (length html))
       (let ((value (elt html html-index)))
         (cond ((eq state :out-tag)
-               (if (eq value ?<)
-                   (setq state :in-tag)
-                 (setq html-text (concat html-text (char-to-string value))))) ;; TODO append char
-              ((eq state :in-tag)                                             ;; without converting
+               (cond ((eq value ?<)
+                      (setq state :in-tag))
+                     ((eq value ?&)
+                      (setq state :code))
+                     (t                 ; TODO append char without converting
+                      (setq html-text (concat html-text (char-to-string value))))))
+              ((eq state :in-tag)
                (if (eq value ?>)
-                   (setq state :out-tag)))))
+                   (setq state :out-tag)))
+              ((eq state :code)
+               (cond ((eq value ?\;)
+                      (if (assoc html-escape-code html-escape-chars)
+                          (setq html-text
+                                (concat html-text
+                                        (char-to-string (cdr (assoc html-escape-code
+                                                                    html-escape-chars)))))
+                        (setq html-text (concat html-text "&" html-escape-code ";")))
+                      (setq html-escape-code "")
+                      (setq state :out-tag))
+                     ((> (length html-escape-code) 4)
+                      (setq html-text (concat html-text "&" html-escape-code))
+                      (setq html-escape-code "")
+                      (setq state :out-tag))
+                     (t
+                      (setq html-escape-code
+                            (concat html-escape-code (char-to-string value))))))))
       (setq html-index (1+ html-index)))
     html-text))
+
 
 ;; Takes a string like this: "github.com/samertm/Sourcegraph-Emacs"
 ;; and returns "samertm/Sourcegraph-Emacs"
@@ -129,9 +158,8 @@
 
 (defun write-examples-text (json-vector name &optional back)
   (insert (format "Examples for %s\n" name))
-  (if (not (fboundp 'libxml-parse-html-region))
-      (insert "For best results, use with an Emacs compiled with libxml2\n"
-              "Currently does not decode special html chars (like &#34;)\n")
+  (if (not nil) ;(fboundp 'libxml-parse-html-region))
+      (insert "For best results, use with an Emacs compiled with libxml2\n\n")
     (insert "\n\n"))
   (let ((json-index 0))
     (while (< json-index (length json-vector))
@@ -146,7 +174,7 @@
         (insert " file: " (plist-get json 'file) "\n\n")
         (let ((point-start (point))
               overlay)
-          (if (fboundp 'libxml-parse-html-region)
+          (if nil ;(fboundp 'libxml-parse-html-region)
               (progn
                 (with-temp-buffer
                   (insert html-text)
