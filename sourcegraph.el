@@ -7,6 +7,7 @@
 
 ;;; Commentary:
 
+;; Call `sourcegraph-search-site' to use the package.
 ;; Currently using overlays for buttons with the button package.
 ;; Might switch to text properties if performance is an issue.
 
