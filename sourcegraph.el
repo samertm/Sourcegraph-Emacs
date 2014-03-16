@@ -25,8 +25,9 @@
 
 ;; ---- Functions ----
 
-;; todo: error catching
+;; TODO error catching
 (defun sourcegraph-parse-json (url)
+  "Parse the array of json objects from query to sourcegraph.com."
   (let* ((json-object-type 'plist)
          (json-key-type 'symbol) ; setting explicitly
          (json-buffer (url-retrieve-synchronously url))
@@ -41,15 +42,20 @@
     (kill-buffer json-buffer)
     parsed-json))
 
-
 (defun sourcegraph-first-sentence (string)
+  "Get first sentence from `string'.
+The variable `string' is expected to be HTML formatted.
+
+There are four states, :watch, :in-tag, :munch, and :done.
+The state :watch reads the character and decides what to do.
+The state :in-tag moves outside of a <tag>.
+The state :munch appends the character to build-string
+The state :done exits the state machine.
+At every step of the state machine, the string index is advanced."
   (let ((build-string "")
         (index 0)
         (deep 0)
         (state :watch))
-    ;; state `:watch' reads the character and decides what to do
-    ;; state `:in-tag' moves outside of a <tag>
-    ;; state `:munch' munches the data and returns
     (while (not (eq state :done))
       (let* ((curr-char (elt string index)))
         (cond ((eq state :watch)
@@ -65,7 +71,7 @@
                (setq state :watch))
               ((eq state :munch)
                ;; match '<' or '. ', whichever comes sooner.
-               ;; todo: handle errors from index+1 being out of bounds for string
+               ;; TODO handle errors from index+1 being out of bounds for string
                (cond ((eq curr-char ?<)
                       (setq state :done))
                      ((and (eq curr-char ?.) (eq (elt string (1+ index)) ?\s))
@@ -76,10 +82,16 @@
                       (setq index (1+ index))))))))
     build-string))
 
-;; `html' is a string consisting of html
-;; Returns the text in `html' w/o any data
-;; TODO make this decode special html characters (i.e. &#34; -> \")
 (defun sourcegraph-text-from-html (html)
+  "Return the text in html without any tags.
+
+The variable html is a string consisting of HTML.
+There are four states:
+The state :out-tag moves to :in-tag if it sees '<', otherwise
+it appends the char to html-text.
+The state :in-tag moves to the outside of the tag.
+The state :code reads an html code and appends it to html-text.
+The state :done exists the state machine."
   (let ((state :out-tag)
         (html-index 0)
         (html-text "")
@@ -90,11 +102,6 @@
                              ("amp" . ?&)
                              ("#59" . ?\;)))
         (html-escape-code ""))
-    ;; Three states
-    ;; :out-tag moves to :in-tag if it sees ?<, otherwise it appends the char to
-    ;; html-text
-    ;; :in-tag moves to the outside of the tag
-    ;; :code reads an html code and inserts it
     (while (< html-index (length html))
       (let ((value (elt html html-index)))
         (cond ((eq state :out-tag)
@@ -127,19 +134,39 @@
       (setq html-index (1+ html-index)))
     html-text))
 
-
-;; Takes a string like this: "github.com/samertm/Sourcegraph-Emacs"
-;; and returns "samertm/Sourcegraph-Emacs"
 (defun sourcegraph-strip-github (url)
+  "Take a github url and return the tail.
+For example, if url is 'github.com/samertm/Sourcegraph-Emacs',
+sourcegraph-strip-github will return 'samertm/Sourcegraph-Emacs'"
   (if (string-match "\\(github\\.com/\\)\\(.+\\)" url)
       (match-string 2 url) ;; url must be passed in b/c it was used with string-match
     url))
 
+(defun sourcegraph-nav-to-examples (button)
+  "Feed api call to `sourcegraph-write-examples-text'."
+  (let* ((sid (overlay-get button 'sid))
+         (url (format (concat sourcegraph-api-url "refs?sid=%s&_via=%s")
+                      sid sourcegraph-via))
+         (json-vector (sourcegraph-parse-json url))
+         (search-terms (overlay-get button 'search-terms))
+         (name (overlay-get button 'name)))
+    ;; TODO make this call more rebust
+    (set-buffer "*Sourcegraph Search*") 
+    (delete-region (point-min) (point-max))
+    (sourcegraph-write-examples-text json-vector name search-terms)))
+
+(defun sourcegraph-nav-to-repo (button)
+  "Open repo associated with button in browser."
+  (let ((url (format "https://sourcegraph.com/%s" (overlay-get button 'name))))
+    (browse-url url)))
+
 (defun sourcegraph-nav-to-search (button)
+  "Call sourcegraph-search-site with button prop search-terms."
   (let ((search-terms (overlay-get button 'search-terms)))
     (sourcegraph-search-site search-terms)))
 
 (defun sourcegraph-write-examples-text (json-vector name &optional prev-search-terms)
+  "Write usage examples to a buffer"
   (insert (format "Examples for %s\n" name))
   (if (not (string= "" prev-search-terms))
       (progn
@@ -168,25 +195,8 @@
         (insert "\n\n"))
       (setq json-index (1+ json-index)))))
 
-
-(defun sourcegraph-nav-to-examples (button)
-  (let* ((sid (overlay-get button 'sid))
-         (url (format (concat sourcegraph-api-url "refs?sid=%s&_via=%s")
-                      sid sourcegraph-via))
-         (json-vector (sourcegraph-parse-json url))
-         (search-terms (overlay-get button 'search-terms))
-         (name (overlay-get button 'name)))
-    ;; TODO make this call more rebust
-    (set-buffer "*Sourcegraph Search*") 
-    (delete-region (point-min) (point-max))
-    (sourcegraph-write-examples-text json-vector name search-terms)))
-
-(defun sourcegraph-nav-to-repo (button)
-  (let ((url (format "https://sourcegraph.com/%s" (overlay-get button 'name))))
-    (browse-url url)))
-
-;; change to insert string into buffer
 (defun sourcegraph-write-symbols-text (json-vector search-terms)
+  "Write search results to buffer"
   (let* ((json-index 0))
     (insert (format "Sourcegraph Search Results for %s\n\n\n" search-terms))
     (while (< json-index (length json-vector))
@@ -212,16 +222,19 @@
             (insert "\n\n"))
         (setq json-index (1+ json-index))))))
 
-;; Return nil if no environment can be sensed. Otherwise, return default
-;; string for searching on sourcegraph
+;; TODO get the function at point
 (defun sense-environment ()
+  "Sense the programming language in current buffer.
+Return nil if no environment can be sensed. Return a string
+with the programming language and function at the point
+if either can be sensed.
+
+The extra space after programming language names is
+intentional. Compare:
+Search Sourcegraph: python<point here>
+Search Sourcegraph: python <point here>"
   (let ((name (buffer-name))
-        ;; function-called-at-point only works for lisp
-        ;; (fn (function-called-at-point))
         env)
-    ;; extra space is intentional. Compare:
-    ;; Search Sourcegraph: python<point here>
-    ;; Search Sourcegraph: python <point here>
     (cond ((string-match ".+\.rb" name)
            (setq env "ruby "))
           ((string-match ".+\.py" name)
@@ -230,14 +243,7 @@
            (setq env "javascript "))
           ((string-match ".+\.go" name)
            (setq env "go ")))
-    ;; No extra space after function names (because we
-    ;; assume the user wanted to look up the function).
-    ;; (if fn
-    ;;     (if env
-    ;;         (setq env (concat env (symbol-name fn)))
-    ;;       (setq env (symbol-name fn))))
     env))
-
 
 (defun sourcegraph-search-site (&optional search-terms)
   "Search Sourcegraph for usage examples for programming libraries"
