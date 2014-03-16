@@ -155,7 +155,7 @@ sourcegraph-strip-github will return 'samertm/Sourcegraph-Emacs'"
     (set-buffer "*Sourcegraph Search*") 
     (delete-region (point-min) (point-max))
     (sourcegraph-write-examples-text json-vector name search-terms)
-    (goto-char (point-min)))
+    (goto-char (point-min))))
 
 (defun sourcegraph-nav-to-repo (button)
   "Open repo associated with button in browser."
