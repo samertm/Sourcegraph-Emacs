@@ -7,27 +7,26 @@
 
 ;;; Commentary:
 
-;; Correct form for url:
-;; "https://sourcegraph.com/api/search?q=django&exported=1&_via=sourcegraph-emacs-01"
-
-;; Should I use defvar for the via string?
-
 ;; Currently using overlays for buttons with the button package.
 ;; Might switch to text properties if performance is an issue.
 
-;; How does namespacing work in emacs? How do I keep from having
-;; name clashes?
-
-;; Change echo text on successful query
-
 ;;; Code:
 
+;; ---- Requirements ----
 (require 'json)
 (require 'button)
 
+;; ---- Global variables ----
+(defvar sourcegraph-via "sourcegraph-emacs-01"
+  "Indicates the version of the package when accessing sourcegraph")
+
+(defvar sourcegraph-api-url "https://sourcegraph.com/api/"
+  "Base string for accessing the api")
+
+;; ---- Functions ----
 
 ;; todo: error catching
-(defun parse-json (url)
+(defun sourcegraph-parse-json (url)
   (let* ((json-object-type 'plist)
          (json-key-type 'symbol) ; setting explicitly
          (json-buffer (url-retrieve-synchronously url))
@@ -43,7 +42,7 @@
     parsed-json))
 
 
-(defun first-sentence (string)
+(defun sourcegraph-first-sentence (string)
   (let ((build-string "")
         (index 0)
         (deep 0)
@@ -80,7 +79,7 @@
 ;; `html' is a string consisting of html
 ;; Returns the text in `html' w/o any data
 ;; TODO make this decode special html characters (i.e. &#34; -> \")
-(defun fallback-text-from-html (html)
+(defun sourcegraph-text-from-html (html)
   (let ((state :out-tag)
         (html-index 0)
         (html-text "")
@@ -131,22 +130,22 @@
 
 ;; Takes a string like this: "github.com/samertm/Sourcegraph-Emacs"
 ;; and returns "samertm/Sourcegraph-Emacs"
-(defun strip-github (url)
+(defun sourcegraph-strip-github (url)
   (if (string-match "\\(github\\.com/\\)\\(.+\\)" url)
       (match-string 2 url) ;; url must be passed in b/c it was used with string-match
     url))
 
-(defun nav-to-search (button)
+(defun sourcegraph-nav-to-search (button)
   (let ((search-terms (overlay-get button 'search-terms)))
     (sourcegraph-search-site search-terms)))
 
-(defun write-examples-text (json-vector name &optional prev-search-terms)
+(defun sourcegraph-write-examples-text (json-vector name &optional prev-search-terms)
   (insert (format "Examples for %s\n" name))
   (if (not (string= "" prev-search-terms))
       (progn
         (insert-button "[back]"
                        'search-terms prev-search-terms
-                       'action 'nav-to-search
+                       'action 'sourcegraph-nav-to-search
                        'follow-link t)))
   (insert "\n\n")
   (let ((json-index 0))
@@ -155,14 +154,14 @@
              (html-text (plist-get (plist-get json 'src) 'src))
              html)
         (insert "repo: ")
-        (insert-button (strip-github (plist-get json 'repo))
+        (insert-button (sourcegraph-strip-github (plist-get json 'repo))
                        'name (plist-get json 'repo)
-                       'action 'nav-to-repo
+                       'action 'sourcegraph-nav-to-repo
                        'follow-link t)
         (insert " file: " (plist-get json 'file) "\n\n")
         (let ((point-start (point))
               overlay)
-          (insert (fallback-text-from-html html-text))
+          (insert (sourcegraph-text-from-html html-text))
           (insert "\n")
           (setq overlay (make-overlay point-start (point)))
           (overlay-put overlay 'face '(background-color . "LightGrey")))
@@ -170,23 +169,24 @@
       (setq json-index (1+ json-index)))))
 
 
-(defun nav-to-examples (button)
+(defun sourcegraph-nav-to-examples (button)
   (let* ((sid (overlay-get button 'sid))
-         (url (format "https://sourcegraph.com/api/refs?sid=%s" sid)) ;; add via?
-         (json-vector (parse-json url))
+         (url (format (concat sourcegraph-api-url "refs?sid=%s&_via=%s")
+                      sid sourcegraph-via))
+         (json-vector (sourcegraph-parse-json url))
          (search-terms (overlay-get button 'search-terms))
          (name (overlay-get button 'name)))
     ;; TODO make this call more rebust
     (set-buffer "*Sourcegraph Search*") 
     (delete-region (point-min) (point-max))
-    (write-examples-text json-vector name search-terms)))
+    (sourcegraph-write-examples-text json-vector name search-terms)))
 
-(defun nav-to-repo (button)
+(defun sourcegraph-nav-to-repo (button)
   (let ((url (format "https://sourcegraph.com/%s" (overlay-get button 'name))))
     (browse-url url)))
 
 ;; change to insert string into buffer
-(defun write-symbols-text (json-vector search-terms)
+(defun sourcegraph-write-symbols-text (json-vector search-terms)
   (let* ((json-index 0))
     (insert (format "Sourcegraph Search Results for %s\n\n\n" search-terms))
     (while (< json-index (length json-vector))
@@ -198,16 +198,16 @@
         (insert-button (plist-get json 'specificPath)
                        'name (plist-get json 'specificPath) ; TODO get name from overlay
                        'search-terms search-terms
-                       'action 'nav-to-examples
+                       'action 'sourcegraph-nav-to-examples
                        'sid (plist-get json 'sid)
                        'follow-link t)
         (insert "\t\t")
-        (insert-button (strip-github (plist-get json 'repo))
+        (insert-button (sourcegraph-strip-github (plist-get json 'repo))
                        'name (plist-get json 'repo) ; TODO get name from overlay
-                       'action 'nav-to-repo
+                       'action 'sourcegraph-nav-to-repo
                        'follow-link t)
         (if (plist-get json 'doc)
-            (insert "\n    " (first-sentence (plist-get json 'doc))))
+            (insert "\n    " (sourcegraph-first-sentence (plist-get json 'doc))))
         (if (< json-index (1- (length json-vector)))
             (insert "\n\n"))
         (setq json-index (1+ json-index))))))
@@ -240,6 +240,7 @@
 
 
 (defun sourcegraph-search-site (&optional search-terms)
+  "Search Sourcegraph for usage examples for programming libraries"
   (interactive)
   (let* ((env (sense-environment))
          (input-string (cond ((and search-terms
@@ -247,16 +248,17 @@
                              (env (read-string "Search Sourcegraph: " env))
                              (t (read-string "Search Sourcegraph: "))))
          (search-string (replace-regexp-in-string " " "+" input-string))
-         (via "sourcegraph-emacs-01")
-         (url-string (format "https://sourcegraph.com/api/search?q=%s&exported=1&_via=%s"
+         (url-string (format (concat sourcegraph-api-url "search?q=%s&exported=1&_via=%s")
                              search-string
-                             via))
+                             sourcegraph-via))
          (buffer (get-buffer-create "*Sourcegraph Search*"))
-         (json (parse-json url-string)))
+         (json (sourcegraph-parse-json url-string)))
     (with-current-buffer buffer
       (delete-region (point-min) (point-max))
-      (write-symbols-text json input-string)
+      (sourcegraph-write-symbols-text json input-string)
       (goto-char (point-min)))
     (display-buffer buffer)))
 
 (provide 'sourcegraph)
+
+;;; sourcegraph.el ends here
