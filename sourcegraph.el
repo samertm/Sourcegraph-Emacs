@@ -136,9 +136,18 @@
       (match-string 2 url) ;; url must be passed in b/c it was used with string-match
     url))
 
+(defun nav-to-search (button)
+  (let ((search-terms (overlay-get button 'search-terms)))
+    (sourcegraph-search-site search-terms)))
 
-(defun write-examples-text (json-vector name &optional back)
+(defun write-examples-text (json-vector name &optional prev-search-terms)
   (insert (format "Examples for %s\n" name))
+  (if (not (string= "" prev-search-terms))
+      (progn
+        (insert-button "[back]"
+                       'search-terms prev-search-terms
+                       'action 'nav-to-search
+                       'follow-link t)))
   (insert "\n\n")
   (let ((json-index 0))
     (while (< json-index (length json-vector))
@@ -165,11 +174,12 @@
   (let* ((sid (overlay-get button 'sid))
          (url (format "https://sourcegraph.com/api/refs?sid=%s" sid)) ;; add via?
          (json-vector (parse-json url))
+         (search-terms (overlay-get button 'search-terms))
          (name (overlay-get button 'name)))
     ;; TODO make this call more rebust
     (set-buffer "*Sourcegraph Search*") 
     (delete-region (point-min) (point-max))
-    (write-examples-text json-vector name)))
+    (write-examples-text json-vector name search-terms)))
 
 (defun nav-to-repo (button)
   (let ((url (format "https://sourcegraph.com/%s" (overlay-get button 'name))))
@@ -187,6 +197,7 @@
         (insert "\t\t")
         (insert-button (plist-get json 'specificPath)
                        'name (plist-get json 'specificPath) ; TODO get name from overlay
+                       'search-terms search-terms
                        'action 'nav-to-examples
                        'sid (plist-get json 'sid)
                        'follow-link t)
@@ -228,13 +239,13 @@
     env))
 
 
-(defun sourcegraph-search-site ()
+(defun sourcegraph-search-site (&optional search-terms)
   (interactive)
   (let* ((env (sense-environment))
-         ;; do I need the if statement when initial-string is ""?
-         (input-string (if env
-                           (read-string "Search Sourcegraph: " env)
-                         (read-string "Search Sourcegraph: ")))
+         (input-string (cond ((and search-terms
+                                   (not (string= "" search-terms))) search-terms)
+                             (env (read-string "Search Sourcegraph: " env))
+                             (t (read-string "Search Sourcegraph: "))))
          (search-string (replace-regexp-in-string " " "+" input-string))
          (via "sourcegraph-emacs-01")
          (url-string (format "https://sourcegraph.com/api/search?q=%s&exported=1&_via=%s"
