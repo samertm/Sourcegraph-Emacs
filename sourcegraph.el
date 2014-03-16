@@ -205,10 +205,8 @@
 ;; string for searching on sourcegraph
 (defun sense-environment ()
   (let ((name (buffer-name))
-        (fn (function-called-at-point))
+        ;; (fn (function-called-at-point))
         env)
-    ;; good enough for github is good enough for me ;)
-    ;; reference: https://github.com/github/linguist/pull/748#issuecomment-37633185
     ;; extra space is intentional. Compare:
     ;; Search Sourcegraph: python<point here>
     ;; Search Sourcegraph: python <point here>
@@ -222,10 +220,10 @@
            (setq env "go ")))
     ;; No extra space after function names (because we
     ;; assume the user wanted to look up the function).
-    (if fn
-        (if env
-            (setq env (concat env (symbol-name fn)))
-          (setq env (symbol-name fn))))
+    ;; (if fn
+    ;;     (if env
+    ;;         (setq env (concat env (symbol-name fn)))
+    ;;       (setq env (symbol-name fn))))
     env))
 
 
