@@ -20,9 +20,6 @@
 
 ;; Change echo text on successful query
 
-;; Works best with libxml2 support (which is included in the Debian package,
-;; but not in most OS X packages).
-
 ;;; Code:
 
 (require 'json)
@@ -38,7 +35,7 @@
     (with-current-buffer json-buffer
       ;; delete headers
       (goto-char (point-min))
-      (delete-region (point-min) (- (search-forward "[") 1))
+      (delete-region (point-min) (- (search-forward "[") 1)) ; TODO generalize for all json
       ;; set-up for json-read
       (goto-char (point-min))
       (setq parsed-json (json-read)))
@@ -80,22 +77,6 @@
                       (setq index (1+ index))))))))
     build-string))
 
-;; html must be a lisp object in the form returned by the call
-;; `libxml-parse-html-region'.
-
-(defun text-from-html (html)
-  (let ((values (cdr (cdr html)))
-        (html-text ""))
-    (while (car values)
-      (let ((value (car values)))
-        (cond ((stringp value)
-               (setq html-text (concat html-text value)))
-              (t
-               (setq html-text (concat html-text (text-from-html value)))))
-      (setq values (cdr values))))
-    html-text))
-
-;; Used when the user's version of Emacs is not compiled with libxml2
 ;; `html' is a string consisting of html
 ;; Returns the text in `html' w/o any data
 ;; TODO make this decode special html characters (i.e. &#34; -> \")
@@ -158,9 +139,7 @@
 
 (defun write-examples-text (json-vector name &optional back)
   (insert (format "Examples for %s\n" name))
-  (if (not (fboundp 'libxml-parse-html-region))
-      (insert "For best results, use with an Emacs compiled with libxml2\n\n")
-    (insert "\n\n"))
+  (insert "\n\n")
   (let ((json-index 0))
     (while (< json-index (length json-vector))
       (let* ((json (elt json-vector json-index))
@@ -174,13 +153,7 @@
         (insert " file: " (plist-get json 'file) "\n\n")
         (let ((point-start (point))
               overlay)
-          (if (fboundp 'libxml-parse-html-region)
-              (progn
-                (with-temp-buffer
-                  (insert html-text)
-                  (setq html (libxml-parse-html-region (point-min) (point-max))))
-                (insert (text-from-html html)))
-            (insert (fallback-text-from-html html-text)))
+          (insert (fallback-text-from-html html-text))
           (insert "\n")
           (setq overlay (make-overlay point-start (point)))
           (overlay-put overlay 'face '(background-color . "LightGrey")))
