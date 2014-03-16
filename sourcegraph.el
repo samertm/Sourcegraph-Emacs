@@ -205,6 +205,7 @@
 ;; string for searching on sourcegraph
 (defun sense-environment ()
   (let ((name (buffer-name))
+        ;; function-called-at-point only works for lisp
         ;; (fn (function-called-at-point))
         env)
     ;; extra space is intentional. Compare:
