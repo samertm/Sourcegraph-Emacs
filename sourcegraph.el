@@ -224,7 +224,6 @@ sourcegraph-strip-github will return 'samertm/Sourcegraph-Emacs'"
             (insert "\n\n"))
         (setq json-index (1+ json-index))))))
 
-;; TODO get the function at point
 (defun sense-environment ()
   "Sense the programming language in current buffer.
 Return nil if no environment can be sensed. Return a string
@@ -236,7 +235,7 @@ intentional. Compare:
 Search Sourcegraph: python<point here>
 Search Sourcegraph: python <point here>"
   (let ((name (buffer-name))
-        env)
+        env )
     (cond ((string-match ".+\.rb" name)
            (setq env "ruby "))
           ((string-match ".+\.py" name)
@@ -245,6 +244,9 @@ Search Sourcegraph: python <point here>"
            (setq env "javascript "))
           ((string-match ".+\.go" name)
            (setq env "go ")))
+    (setq fn-name (symbol-name (symbol-at-point)))
+    (if fn-name
+        (setq env (concat env fn-name)))
     env))
 
 (defun sourcegraph-search-site (&optional search-terms)
