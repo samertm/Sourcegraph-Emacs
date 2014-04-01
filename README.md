@@ -1,7 +1,7 @@
 # Sourcegraph Emacs Package
 
-This package users data from Sourcegraph.com to help you find code examples
-from within emacs.
+This package uses data from Sourcegraph.com to help you find code examples
+from within Emacs.
 
 Call M-x sourcegraph-search-site RET to look for examples for the framework or
 the language that you're in.
