@@ -157,8 +157,8 @@ sourcegraph-strip-github will return 'samertm/Sourcegraph-Emacs'"
     (sourcegraph-write-examples-text json-vector name search-terms)
     (goto-char (point-min))))
 
-(defun sourcegraph-nav-to-repo (button)
-  "Open repo associated with button in browser."
+(defun sourcegraph-nav-to-srcgraph-url (button)
+  "Open url associated with button in browser."
   (let ((url (format "https://sourcegraph.com/%s" (overlay-get button 'name))))
     (browse-url url)))
 
@@ -185,9 +185,16 @@ sourcegraph-strip-github will return 'samertm/Sourcegraph-Emacs'"
         (insert "repo: ")
         (insert-button (sourcegraph-strip-github (plist-get json 'repo))
                        'name (plist-get json 'repo)
-                       'action 'sourcegraph-nav-to-repo
+                       'action 'sourcegraph-nav-to-srcgraph-url
                        'follow-link t)
-        (insert " file: " (plist-get json 'file) "\n\n")
+        (insert " file: ")
+        (insert-button (plist-get json 'file)
+                       'name (concat (plist-get json 'repo)
+                                     "/tree/master/"
+                                     (plist-get json 'file))
+                       'action 'sourcegraph-nav-to-srcgraph-url
+                       'follow-link t)
+        (insert "\n\n")
         (let ((point-start (point))
               overlay)
           (insert (sourcegraph-text-from-html html-text))
@@ -216,7 +223,7 @@ sourcegraph-strip-github will return 'samertm/Sourcegraph-Emacs'"
         (insert "\t\t")
         (insert-button (sourcegraph-strip-github (plist-get json 'repo))
                        'name (plist-get json 'repo) ; TODO get name from overlay
-                       'action 'sourcegraph-nav-to-repo
+                       'action 'sourcegraph-nav-to-srcgraph-url
                        'follow-link t)
         (if (plist-get json 'doc)
             (insert "\n    " (sourcegraph-first-sentence (plist-get json 'doc))))
